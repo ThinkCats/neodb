@@ -1,6 +1,9 @@
 use clap::Parser;
+use std::io;
 use std::io::stdout;
-use std::io::{self, BufRead, Write};
+use std::io::{BufRead, Write};
+
+use crate::parse;
 
 ///ndb command
 #[derive(Parser, Debug)]
@@ -28,10 +31,16 @@ pub fn read_cmd() {
         match result {
             Ok(input) => {
                 println!("Input:{},Size:{}", &buf, input);
+                process_input_sql(buf);
             }
             Err(error) => {
                 println!("err in cmd, info:{:?}", error);
             }
         }
     }
+}
+
+fn process_input_sql(input: String) {
+    let result = parse::parse_sql(&input);
+    println!("Parse Your SQL:{}", result);
 }
