@@ -1,8 +1,10 @@
-use sqlparser::ast::{ColumnDef, Expr, Ident, Query, SelectItem, SetExpr, Statement, TableFactor};
+use std::fmt::{Display, Write};
+
+use sqlparser::ast::{ColumnDef, Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
 use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
 
-pub trait DDL {}
+pub trait DDL: Display {}
 
 #[derive(Debug)]
 struct SelectDef {
@@ -17,10 +19,24 @@ struct CreateTableDef {
 }
 
 impl DDL for CreateTableDef {}
+impl Display for CreateTableDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Table Name:{},Columns Def:{:?}",
+            self.table_name, self.columns
+        )
+    }
+}
 
 impl DDL for SelectDef {}
+impl Display for SelectDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Table Name:{:?},Columns:{:?}", self.table, self.columns)
+    }
+}
 
-pub fn parse_sql(sql: &str) {
+pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
     let dialect = MySqlDialect {};
     let ast = Parser::parse_sql(&dialect, sql);
 
@@ -35,7 +51,6 @@ pub fn parse_sql(sql: &str) {
                 //process select query
                 Statement::Query(q) => {
                     let select_def = parse_select_cols(q);
-                    println!("query columns name:{:?}", select_def);
                     Box::new(select_def)
                 }
                 //process create table
@@ -63,7 +78,6 @@ pub fn parse_sql(sql: &str) {
                         table_name,
                         columns,
                     };
-                    println!("create table def:{:?}", create_table_def);
                     Box::new(create_table_def)
                 }
                 Statement::Insert {
@@ -84,12 +98,14 @@ pub fn parse_sql(sql: &str) {
                     panic!("body parse error")
                 }
             };
+
+            ddl
         }
         Err(err) => {
             println!("find error:{:?}", err);
             panic!("parse error")
         }
-    };
+    }
 }
 
 ///parse select sql
