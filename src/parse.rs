@@ -1,4 +1,4 @@
-use std::fmt::{Display, Write};
+use std::fmt::Display;
 
 use sqlparser::ast::{ColumnDef, Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
 use sqlparser::dialect::MySqlDialect;
@@ -36,6 +36,24 @@ impl Display for SelectDef {
     }
 }
 
+#[derive(Debug)]
+struct CreateDbDef {
+    db_name: String,
+    if_not_exists: bool,
+}
+
+impl DDL for CreateDbDef {}
+
+impl Display for CreateDbDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Db Name:{}, If Not Existed:{}",
+            self.db_name, self.if_not_exists
+        )
+    }
+}
+
 pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
     let dialect = MySqlDialect {};
     let ast = Parser::parse_sql(&dialect, sql);
@@ -52,6 +70,19 @@ pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
                 Statement::Query(q) => {
                     let select_def = parse_select_cols(q);
                     Box::new(select_def)
+                }
+                //process create db
+                Statement::CreateSchema {
+                    schema_name,
+                    if_not_exists,
+                } => {
+                    let mut n = schema_name.0;
+                    let name = n.pop().unwrap().value;
+                    let create_db_def = CreateDbDef {
+                        db_name: name,
+                        if_not_exists,
+                    };
+                    Box::new(create_db_def)
                 }
                 //process create table
                 Statement::CreateTable {
