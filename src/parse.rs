@@ -4,7 +4,16 @@ use sqlparser::ast::{ColumnDef, Expr, Query, SelectItem, SetExpr, Statement, Tab
 use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
 
-pub trait DDL: Display {}
+pub trait DDL: Display {
+    fn cmd(self: &Self) -> DbCmd;
+}
+
+#[derive(Debug)]
+pub enum DbCmd {
+    CreateDatabase,
+    CreateTable,
+    Select,
+}
 
 #[derive(Debug)]
 struct SelectDef {
@@ -18,7 +27,11 @@ struct CreateTableDef {
     columns: Vec<ColumnDef>,
 }
 
-impl DDL for CreateTableDef {}
+impl DDL for CreateTableDef {
+    fn cmd(self: &Self) -> DbCmd {
+        DbCmd::CreateTable
+    }
+}
 impl Display for CreateTableDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -29,7 +42,11 @@ impl Display for CreateTableDef {
     }
 }
 
-impl DDL for SelectDef {}
+impl DDL for SelectDef {
+    fn cmd(self: &Self) -> DbCmd {
+        DbCmd::Select
+    }
+}
 impl Display for SelectDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Table Name:{:?},Columns:{:?}", self.table, self.columns)
@@ -42,7 +59,11 @@ struct CreateDbDef {
     if_not_exists: bool,
 }
 
-impl DDL for CreateDbDef {}
+impl DDL for CreateDbDef {
+    fn cmd(self: &Self) -> DbCmd {
+        DbCmd::CreateDatabase
+    }
+}
 
 impl Display for CreateDbDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

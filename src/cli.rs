@@ -43,4 +43,6 @@ pub fn read_cmd() {
 fn process_input_sql(input: String) {
     let result = parse::parse_sql(&input);
     println!("Parse Your SQL:{}", result);
+    let cmd = result.cmd();
+    println!("Your SQL Cmd:{:?}", cmd);
 }
