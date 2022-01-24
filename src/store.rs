@@ -6,11 +6,12 @@ fn file_exists(path: &str) -> bool {
     Path::new(path).exists()
 }
 
+//size unit: MB
 pub fn check_or_create_file(path: &str, size: u64) -> Result<()> {
     if file_exists(path) {
         return Ok(());
     }
     let f = File::create(path)?;
-    f.set_len(size)?;
+    f.set_len(size * 1024 * 1024)?;
     Ok(())
 }
