@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Display;
 
 use sqlparser::ast::{DataType, Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
@@ -6,6 +7,7 @@ use sqlparser::parser::Parser;
 
 pub trait DDL: Display {
     fn cmd(self: &Self) -> DbCmd;
+    fn as_any(&self) -> &dyn Any;
 }
 
 #[derive(Debug)]
@@ -38,6 +40,10 @@ impl DDL for CreateTableDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::CreateTable
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 impl Display for CreateTableDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,6 +58,10 @@ impl Display for CreateTableDef {
 impl DDL for SelectDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::Select
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 impl Display for SelectDef {
@@ -69,6 +79,10 @@ struct CreateDbDef {
 impl DDL for CreateDbDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::CreateDatabase
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

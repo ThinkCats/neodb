@@ -20,4 +20,9 @@ pub fn check_or_create_file(path: &str, size: u64) -> Result<()> {
 //TODO add init store process
 pub fn init_meta_store() {}
 
-pub fn init_table_store(table_create_def: CreateTableDef) {}
+pub fn init_table_store(table_create_def: &CreateTableDef) {
+    println!(
+        "-> Start init table store process, get def:{:?}",
+        table_create_def
+    );
+}

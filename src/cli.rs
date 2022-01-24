@@ -3,7 +3,9 @@ use std::io;
 use std::io::stdout;
 use std::io::{BufRead, Write};
 
-use crate::parse;
+use crate::parse::DbCmd;
+use crate::parse::{self, CreateTableDef};
+use crate::store;
 
 ///ndb command
 #[derive(Parser, Debug)]
@@ -45,4 +47,21 @@ fn process_input_sql(input: String) {
     println!("Parse Your SQL:{}", result);
     let cmd = result.cmd();
     println!("Your SQL Cmd:{:?}", cmd);
+
+    match cmd {
+        DbCmd::CreateDatabase => {
+            println!("Start Init Create Db Schema");
+            store::init_meta_store();
+        }
+        DbCmd::CreateTable => {
+            println!("Start Create Table Init");
+            let create_table_def: &CreateTableDef =
+                match result.as_any().downcast_ref::<CreateTableDef>() {
+                    Some(create_table_def) => create_table_def,
+                    None => panic!("parse sql result is not create_table_def"),
+                };
+            store::init_table_store(create_table_def);
+        }
+        DbCmd::Select => {}
+    }
 }
