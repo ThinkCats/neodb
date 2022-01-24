@@ -139,6 +139,7 @@ name = "ndb"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "lazy_static",
  "sqlparser",
  "subway",
 ]

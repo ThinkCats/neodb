@@ -14,3 +14,4 @@ include = [
 clap = { version = "3.0.10", features = ["derive"] }
 sqlparser = "0.13.0"
 subway = "0.1.2"
+lazy_static = "1.4.0"
