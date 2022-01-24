@@ -15,3 +15,6 @@ pub fn check_or_create_file(path: &str, size: u64) -> Result<()> {
     f.set_len(size * 1024 * 1024)?;
     Ok(())
 }
+
+//TODO add init store process
+pub fn init_store() {}
