@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use sqlparser::ast::{ColumnDef, Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
+use sqlparser::ast::{DataType, Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
 use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
 
@@ -22,9 +22,16 @@ struct SelectDef {
 }
 
 #[derive(Debug)]
-struct CreateTableDef {
-    table_name: String,
-    columns: Vec<ColumnDef>,
+pub struct CreateTableDef {
+    pub db_name: String,
+    pub table_name: String,
+    pub columns: Vec<ColDef>,
+}
+
+#[derive(Debug)]
+pub struct ColDef {
+    pub name: String,
+    pub col_type: DataType,
 }
 
 impl DDL for CreateTableDef {
@@ -126,9 +133,22 @@ pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
                 } => {
                     let mut name_vec = name.0;
                     let table_name = name_vec.pop().unwrap().value;
+
+                    let mut col_defs = Vec::new();
+                    for v in columns {
+                        let col_name = v.name.value;
+                        let data_type = v.data_type;
+                        col_defs.push(ColDef {
+                            name: col_name,
+                            col_type: data_type,
+                        });
+                    }
+
                     let create_table_def = CreateTableDef {
                         table_name,
-                        columns,
+                        columns: col_defs,
+                        //TODO db name in context
+                        db_name: String::from("test"),
                     };
                     Box::new(create_table_def)
                 }
