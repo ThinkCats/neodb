@@ -16,7 +16,6 @@ pub fn init_meta_store() {
 
     //write free offset info
     let free_offset = scheme_size - u64::from(context.schema_free_size);
-    let data_offset = scheme_size - free_offset;
 
     //actual use size
     let use_size = context.schema_free_size + context.schema_offset_size;
@@ -24,9 +23,12 @@ pub fn init_meta_store() {
     //    panic!("system error,can not cal free size, because free < 0 ");
     //}
     let free = scheme_size - u64::from(use_size);
+    println!("free offsize:{}, size:{}", free_offset, free);
     write_content(&file, free_offset, format!("{}", free).as_str());
 
     //data offset
+    let data_offset = scheme_size - u64::from(use_size);
+    println!("data offsize:{}", data_offset);
     write_content(&file, data_offset, "0");
 }
 
