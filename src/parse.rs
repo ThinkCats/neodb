@@ -12,6 +12,8 @@ pub trait DDL: Display {
 
 #[derive(Debug)]
 pub enum DbCmd {
+    Show,
+    Use,
     CreateDatabase,
     CreateTable,
     Select,
@@ -34,6 +36,33 @@ pub struct CreateTableDef {
 pub struct ColDef {
     pub name: String,
     pub col_type: DataType,
+}
+
+#[derive(Debug)]
+pub struct ShowDef {
+    pub show_type: ShowType,
+}
+
+#[derive(Debug)]
+pub enum ShowType {
+    DataBase,
+    Table,
+}
+
+impl DDL for ShowDef {
+    fn cmd(self: &Self) -> DbCmd {
+        DbCmd::Show
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Display for ShowDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Show Def Type:{:?}", self.show_type)
+    }
 }
 
 impl DDL for CreateTableDef {
@@ -96,7 +125,53 @@ impl Display for CreateDbDef {
     }
 }
 
+#[derive(Debug)]
+pub struct UseDef {
+    pub db_name: String,
+}
+
+impl DDL for UseDef {
+    fn cmd(self: &Self) -> DbCmd {
+        DbCmd::Use
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Display for UseDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Use Db Name:{}", self.db_name)
+    }
+}
+
 pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
+    //process show
+    if sql.starts_with("show database") {
+        return Box::new(ShowDef {
+            show_type: ShowType::DataBase,
+        });
+    }
+
+    if sql.starts_with("show table") {
+        return Box::new(ShowDef {
+            show_type: ShowType::Table,
+        });
+    }
+
+    if sql.starts_with("use") {
+        let split: Vec<&str> = sql.split(|x| x == ' ' || x == ';').collect();
+        if split.len() < 2 {
+            //TODO use result
+            panic!("invalid use statement -> {}", sql);
+        }
+        let use_def = UseDef {
+            db_name: split[1].to_string(),
+        };
+        return Box::new(use_def);
+    }
+
     let dialect = MySqlDialect {};
     let ast = Parser::parse_sql(&dialect, sql);
 

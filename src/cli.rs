@@ -3,8 +3,9 @@ use std::io;
 use std::io::stdout;
 use std::io::{BufRead, Write};
 
-use crate::parse::DbCmd;
+use crate::context::{use_db, CONTEXT};
 use crate::parse::{self, CreateTableDef};
+use crate::parse::{DbCmd, UseDef};
 use crate::store;
 
 ///ndb command
@@ -48,7 +49,27 @@ fn process_input_sql(input: String) {
     let cmd = result.cmd();
     println!("Your SQL Cmd:{:?}", cmd);
 
+    //check if use db
+    if matches!(cmd, DbCmd::Use) {
+        let use_def: &UseDef = match result.as_any().downcast_ref::<UseDef>() {
+            Some(use_def) => use_def,
+            None => panic!("parse sql result is not use def"),
+        };
+        use_db(use_def.db_name.as_str());
+    }
+
+    if !matches!(cmd, DbCmd::CreateDatabase) {
+        if "" == CONTEXT.lock().unwrap().db_name {
+            println!("please select your database");
+            return;
+        }
+    }
+
     match cmd {
+        DbCmd::Use => {}
+        DbCmd::Show => {
+            println!("Process Show Statement");
+        }
         DbCmd::CreateDatabase => {
             println!("Start Init Create Db Schema");
             store::init_meta_store();
@@ -65,3 +86,5 @@ fn process_input_sql(input: String) {
         DbCmd::Select => {}
     }
 }
+
+fn process_use_db() {}

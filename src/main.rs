@@ -1,6 +1,6 @@
 use ndb::cli;
 
 fn main() {
-    println!("Hello, world!");
+    println!("Welcome !");
     cli::read_cmd();
 }
