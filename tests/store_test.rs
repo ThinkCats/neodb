@@ -1,4 +1,4 @@
-use ndb::store::{check_or_create_file, delete_file, write_content};
+use ndb::store::{check_or_create_file, delete_file, init_meta_store, write_content};
 use ndb::store_file::SSDataEntry;
 use subway::skiplist::SkipList;
 
@@ -70,4 +70,9 @@ fn test_write_info() {
     }
     assert_eq!(position, 15);
     delete_file(path);
+}
+
+#[test]
+fn test_init_schema() {
+    init_meta_store();
 }

@@ -1,5 +1,10 @@
 use std::mem::size_of_val;
 
+pub struct Basic {
+    free: u64,
+    last_offset: u64,
+}
+
 #[derive(Debug, Clone)]
 pub struct SSDataEntry {
     pub key: i64,
@@ -26,11 +31,6 @@ impl SSDataEntry {
 
 pub struct SSFilter {
     //TODO bloom filter
-}
-
-pub struct SSBasic {
-    free: u64,
-    last_offset: u64,
 }
 
 pub struct SSTable {

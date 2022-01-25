@@ -3,7 +3,7 @@ use std::io;
 use std::io::stdout;
 use std::io::{BufRead, Write};
 
-use crate::context::{use_db, CONTEXT};
+use crate::context::{context_use_db, CONTEXT};
 use crate::parse::{self, CreateTableDef};
 use crate::parse::{DbCmd, UseDef};
 use crate::store;
@@ -65,7 +65,7 @@ fn process_input_sql(input: String) {
             Some(use_def) => use_def,
             None => panic!("parse sql result is not use def"),
         };
-        use_db(use_def.db_name.as_str());
+        context_use_db(use_def.db_name.as_str());
     }
 
     if !matches!(cmd, DbCmd::CreateDatabase) {
@@ -96,5 +96,3 @@ fn process_input_sql(input: String) {
         DbCmd::Select => {}
     }
 }
-
-fn process_use_db() {}
