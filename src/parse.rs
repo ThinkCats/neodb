@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::fmt::Display;
 
+use anyhow::{bail, Result};
 use sqlparser::ast::{DataType, Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
 use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
@@ -146,30 +147,29 @@ impl Display for UseDef {
     }
 }
 
-pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
+pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
     //process show
     if sql.starts_with("show database") {
-        return Box::new(ShowDef {
+        return Ok(Box::new(ShowDef {
             show_type: ShowType::DataBase,
-        });
+        }));
     }
 
     if sql.starts_with("show table") {
-        return Box::new(ShowDef {
+        return Ok(Box::new(ShowDef {
             show_type: ShowType::Table,
-        });
+        }));
     }
 
     if sql.starts_with("use") {
         let split: Vec<&str> = sql.split(|x| x == ' ' || x == ';').collect();
         if split.len() < 2 {
-            //TODO use result
-            panic!("invalid use statement -> {}", sql);
+            bail!("invalid use statement: {}", sql)
         }
         let use_def = UseDef {
             db_name: split[1].to_string(),
         };
-        return Box::new(use_def);
+        return Ok(Box::new(use_def));
     }
 
     let dialect = MySqlDialect {};
@@ -178,7 +178,7 @@ pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
     match ast {
         Ok(mut data) => {
             if data.len() > 1 {
-                panic!("too much sql");
+                bail!("too much sql :{}", sql);
             }
             let statement = data.pop().unwrap();
 
@@ -252,19 +252,17 @@ pub fn parse_sql(sql: &str) -> Box<dyn DDL> {
                     table,
                     on: _,
                 } => {
-                    println!("table_name:{}", table_name);
-                    panic!()
+                    bail!("insert not support now :{}", sql);
                 }
                 _ => {
-                    panic!("body parse error")
+                    bail!("unknown parse statement :{}", sql);
                 }
             };
 
-            ddl
+            Ok(ddl)
         }
         Err(err) => {
-            println!("find error:{:?}", err);
-            panic!("parse error")
+            bail!("system error in parse statement :{}, error:{:?}", sql, &err)
         }
     }
 }

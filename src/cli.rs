@@ -32,8 +32,7 @@ pub fn read_cmd() {
         let mut handle = stdin.lock();
         let result = handle.read_line(&mut buf);
         match result {
-            Ok(input) => {
-                println!("Input:{},Size:{}", &buf, input);
+            Ok(_) => {
                 process_input_sql(buf);
             }
             Err(error) => {
@@ -44,7 +43,18 @@ pub fn read_cmd() {
 }
 
 fn process_input_sql(input: String) {
-    let result = parse::parse_sql(&input);
+    let result: Box<_>;
+    let parse_result = parse::parse_sql(&input);
+    match parse_result {
+        Ok(data) => {
+            result = data;
+        }
+        Err(err) => {
+            println!("process sql error:{:?}", err);
+            return;
+        }
+    }
+
     println!("Parse Your SQL:{}", result);
     let cmd = result.cmd();
     println!("Your SQL Cmd:{:?}", cmd);
