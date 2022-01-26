@@ -85,10 +85,10 @@ fn test_write_info() {
     delete_file(path);
 }
 
-#[test]
-fn test_install_schema() {
-    install_meta_info_store();
-}
+//#[test]
+//fn test_install_schema() {
+//    install_meta_info_store();
+//}
 
 #[test]
 fn test_process_create_db() {

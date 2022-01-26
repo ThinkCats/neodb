@@ -36,7 +36,15 @@ pub fn startup_load_schema_mem() {
     let context = &mut CONTEXT.lock().unwrap().schema;
     //TODO cache file fd
     let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
-    let data_offset = context.schema_data.info;
+    let mut data_offset = context.schema_data.info;
+    if data_offset == 0 {
+        //maybe init offset, need read from file
+        let mut data_offset_buf = vec![0, context.schema_data.capacity];
+        let position = context.schema_data.offset;
+        read_content(&file, position, &mut data_offset_buf);
+        let tmp = String::from_utf8(data_offset_buf).unwrap();
+        data_offset = tmp.parse().unwrap();
+    }
     println!("read data size:{}", data_offset);
     let mut buf = vec![0; data_offset as usize];
     read_content(&file, 0, &mut buf);

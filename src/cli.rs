@@ -23,7 +23,7 @@ struct Args {
 
 pub fn read_cmd() {
     let args = Args::parse();
-    println!("args:{:?}", args);
+    println!("[debug] args:{:?}", args);
     loop {
         print!("--> ");
         stdout().flush().unwrap();
@@ -33,7 +33,10 @@ pub fn read_cmd() {
         let result = handle.read_line(&mut buf);
         match result {
             Ok(_) => {
-                process_input_sql(buf);
+                //remove enter
+                let buf_str = buf.as_str();
+                let sub = buf_str[..buf_str.len() - 1].to_string();
+                process_input_sql(sub);
             }
             Err(error) => {
                 println!("err in cmd, info:{:?}", error);
@@ -55,9 +58,9 @@ fn process_input_sql(input: String) {
         }
     }
 
-    println!("Parse Your SQL:{}", result);
+    println!("[debug] Parse Your SQL:{}", result);
     let cmd = result.cmd();
-    println!("Your SQL Cmd:{:?}", cmd);
+    println!("[debug] Your SQL Cmd:{:?}", cmd);
 
     //check if use db
     if matches!(cmd, DbCmd::Use) {

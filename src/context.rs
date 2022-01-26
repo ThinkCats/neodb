@@ -30,8 +30,9 @@ pub struct SchemeArea {
     pub capacity: u8,
 }
 
-#[derive(Debug, Clone)]
-pub struct SchemaContext {}
+impl Schema {
+    pub fn calc_schema_data_offset(&self) {}
+}
 
 lazy_static! {
 
@@ -62,5 +63,14 @@ pub fn context_scheme_data_update(schema: &mut Schema, data: SkipList<String>) {
 }
 
 pub fn context_use_db(db_name: &str) {
-    CONTEXT.lock().unwrap().db_name = db_name.to_string();
+    let mut context = CONTEXT.lock().unwrap();
+    //check db exists
+    let db_existed = context.schema.data.contains(&db_name.to_string());
+    if !db_existed {
+        println!("the schema don't existed : {}", db_name);
+        return;
+    }
+
+    context.db_name = db_name.to_string();
+    println!("after Use, context:{:?}", context);
 }
