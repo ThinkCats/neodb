@@ -48,10 +48,10 @@ lazy_static! {
 
 }
 
-pub fn context_schema_info(free_info: u64, data_info: u64) {
-    let mut context = CONTEXT.lock().unwrap();
-    context.schema.schema_data.info = data_info;
-    context.schema.schema_free.info = free_info;
+pub fn context_schema_info(schema: &mut Schema, free_info: u64, data_info: u64) {
+    //let mut context = CONTEXT.lock().unwrap();
+    schema.schema_data.info = data_info;
+    schema.schema_free.info = free_info;
 }
 
 pub fn context_use_db(db_name: &str) {

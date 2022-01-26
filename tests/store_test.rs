@@ -1,5 +1,8 @@
 use convenient_skiplist::{RangeHint, SkipList};
-use ndb::store::{check_or_create_file, delete_file, install_meta_info_store, write_content};
+use ndb::store::{
+    check_or_create_file, delete_file, install_meta_info_store, process_create_db,
+    startup_load_schema_mem, write_content,
+};
 use ndb::store_file::SSDataEntry;
 
 #[test]
@@ -66,12 +69,12 @@ fn test_skip_list() {
 fn test_write_info() {
     let path = "/Users/wanglei/tmp/log/wal.log";
     let size = 10;
-    let f = check_or_create_file(path, size).unwrap();
+    let mut f = check_or_create_file(path, size).unwrap();
     let content = "hello";
     let mut times = 1;
     let mut position = 0;
     loop {
-        position += write_content(&f, position, content) as u64;
+        position += write_content(&mut f, position, content) as u64;
         times += 1;
         if times > 3 {
             break;
@@ -84,4 +87,14 @@ fn test_write_info() {
 #[test]
 fn test_init_schema() {
     install_meta_info_store();
+}
+
+#[test]
+fn test_read_schema() {
+    startup_load_schema_mem();
+}
+
+#[test]
+fn test_process_create_db() {
+    process_create_db("hello");
 }

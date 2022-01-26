@@ -4,6 +4,7 @@ use crate::context::{context_schema_info, CONTEXT};
 use crate::parse::CreateTableDef;
 use std::fs;
 use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::os::unix::prelude::FileExt;
 use std::path::Path;
 
@@ -12,10 +13,10 @@ pub fn install_meta_info_store() {
     let context = &CONTEXT.lock().unwrap().schema;
     //TODO cache file fd
 
-    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
+    let mut file = check_or_create_file(context.path.as_str(), context.size).unwrap();
     let free_schema = context.schema_free;
     write_content(
-        &file,
+        &mut file,
         free_schema.offset,
         format!("{}", free_schema.info).as_str(),
     );
@@ -23,14 +24,26 @@ pub fn install_meta_info_store() {
     //data offset
     let data_schema = context.schema_data;
     write_content(
-        &file,
+        &mut file,
         data_schema.offset,
         format!("{}", data_schema.info).as_str(),
     );
 }
 
-pub fn process_create_db(db: &str) {
+///load data info in schema file into mem
+pub fn startup_load_schema_mem() {
     let context = &CONTEXT.lock().unwrap().schema;
+    //TODO cache file fd
+    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
+    let data_offset = context.schema_data.info;
+    let mut buf = vec![0; data_offset as usize];
+    read_content(&file, 0, &mut buf);
+    println!("read content:{:?}", buf);
+}
+
+///create a db
+pub fn process_create_db(db: &str) {
+    let context = &mut CONTEXT.lock().unwrap().schema;
     let schema_data = context.schema_data;
 
     //TODO define protocol
@@ -38,13 +51,19 @@ pub fn process_create_db(db: &str) {
     let db_name = tmp.as_str();
     let data_size = db_name.as_bytes().len() as u64;
     //TODO cache file fd
-    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
-    write_content(&file, schema_data.info, db_name);
+    let mut file = check_or_create_file(context.path.as_str(), context.size).unwrap();
+    write_content(&mut file, schema_data.info, db_name);
 
     //update data offset info and free info
     let data_info = schema_data.info + data_size;
+    write_content(
+        &mut file,
+        schema_data.offset,
+        format!("{}", data_info).as_str(),
+    );
+
     let free_info = context.schema_free.info - data_size;
-    context_schema_info(free_info, data_info)
+    context_schema_info(context, free_info, data_info);
 }
 
 pub fn process_use_db(db_name: &str) {
@@ -84,8 +103,10 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
     );
 }
 
-pub fn write_content(f: &File, position: u64, content: &str) -> usize {
-    f.write_at(content.as_bytes(), position).unwrap()
+pub fn write_content(f: &mut File, position: u64, content: &str) -> usize {
+    let size = f.write_at(content.as_bytes(), position).unwrap();
+    f.flush();
+    return size;
 }
 
 pub fn read_content(f: &File, position: u64, buf: &mut [u8]) {
