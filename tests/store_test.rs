@@ -1,4 +1,5 @@
 use convenient_skiplist::{RangeHint, SkipList};
+use ndb::context::CONTEXT;
 use ndb::store::{
     check_or_create_file, delete_file, install_meta_info_store, process_create_db,
     startup_load_schema_mem, write_content,
@@ -85,16 +86,25 @@ fn test_write_info() {
 }
 
 #[test]
-fn test_init_schema() {
-    install_meta_info_store();
-}
-
-#[test]
-fn test_read_schema() {
-    startup_load_schema_mem();
-}
+fn test_init_schema() {}
 
 #[test]
 fn test_process_create_db() {
+    //create file
+    install_meta_info_store();
+    //read info
+    startup_load_schema_mem();
+    //create db
     process_create_db("hello");
+    process_create_db("world");
+
+    let context = &CONTEXT.lock().unwrap().schema;
+    println!("scheme info :{:?}", context);
+
+    assert_eq!(context.data.len(), 2);
+    assert_eq!(context.schema_data.info, 12);
+
+    println!("scheme info :{:?}", context);
+
+    delete_file(context.path.as_str());
 }
