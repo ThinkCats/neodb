@@ -13,6 +13,7 @@ include = [
 [dependencies]
 clap = { version = "3.0.10", features = ["derive"] }
 sqlparser = "0.13.0"
-subway = "0.1.2"
+convenient-skiplist = "1.0.3"
+crossbeam = "0.8.0"
 lazy_static = "1.4.0"
 anyhow = "1.0.53"

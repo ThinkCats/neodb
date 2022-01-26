@@ -82,7 +82,7 @@ fn process_input_sql(input: String) {
         }
         DbCmd::CreateDatabase => {
             println!("Start Init Create Db Schema");
-            store::init_meta_store();
+            store::install_meta_info_store();
         }
         DbCmd::CreateTable => {
             println!("Start Create Table Init");

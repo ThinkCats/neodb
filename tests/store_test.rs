@@ -1,6 +1,6 @@
-use ndb::store::{check_or_create_file, delete_file, init_meta_store, write_content};
+use convenient_skiplist::{RangeHint, SkipList};
+use ndb::store::{check_or_create_file, delete_file, install_meta_info_store, write_content};
 use ndb::store_file::SSDataEntry;
-use subway::skiplist::SkipList;
 
 #[test]
 fn test_check_file() {
@@ -30,27 +30,36 @@ fn test_skip_list() {
         value: String::from("hello"),
     };
     println!("data entry size:{}", entry1.length());
-    list.insert(1, entry1);
+    list.insert(entry1);
 
     let entry3 = SSDataEntry {
         key: 3,
         value: String::from("Ssss"),
     };
-    list.insert(3, entry3);
+    list.insert(entry3);
 
     let entry2 = SSDataEntry {
         key: 2,
         value: String::from("world"),
     };
-    list.insert(2, entry2);
-    let values = list.collect();
-    println!("result:{:?}", values);
-    assert_eq!(values.len(), 3);
+    list.insert(entry2);
 
-    let dddd = list.get(&2);
-    println!("second ele:{:?}", dddd);
+    println!("skip list detail :{:?}", list);
+    assert_eq!(list.len(), 3);
 
-    assert_eq!(dddd.unwrap().key, 2);
+    let range = list.range_with(|ele| {
+        if ele.key > 2 {
+            RangeHint::LargerThanRange
+        } else if ele.key == 2 {
+            RangeHint::InRange
+        } else {
+            RangeHint::SmallerThanRange
+        }
+    });
+
+    for item in range {
+        println!("range skip list:{:?}", item);
+    }
 }
 
 #[test]
@@ -74,5 +83,5 @@ fn test_write_info() {
 
 #[test]
 fn test_init_schema() {
-    init_meta_store();
+    install_meta_info_store();
 }

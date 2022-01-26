@@ -1,43 +1,61 @@
 use anyhow::{Context, Result};
 
-use crate::context::CONTEXT;
+use crate::context::{context_schema_info, CONTEXT};
 use crate::parse::CreateTableDef;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::os::unix::prelude::FileExt;
 use std::path::Path;
 
-//TODO add init store process
-pub fn init_meta_store() {
-    let context = CONTEXT.lock().unwrap();
+///startup process
+pub fn install_meta_info_store() {
+    let context = &CONTEXT.lock().unwrap().schema;
     //TODO cache file fd
-    let scheme_size = context.schema_size;
-    let file = check_or_create_file(context.schema_path.as_str(), scheme_size).unwrap();
 
-    //write free offset info
-    let free_offset = scheme_size - u64::from(context.schema_free_size);
-
-    //actual use size
-    let use_size = context.schema_free_size + context.schema_offset_size;
-    //if scheme_size < use_size as u64 {
-    //    panic!("system error,can not cal free size, because free < 0 ");
-    //}
-    let free = scheme_size - u64::from(use_size);
-    println!("free offsize:{}, size:{}", free_offset, free);
-    write_content(&file, free_offset, format!("{}", free).as_str());
+    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
+    let free_schema = context.schema_free;
+    write_content(
+        &file,
+        free_schema.offset,
+        format!("{}", free_schema.info).as_str(),
+    );
 
     //data offset
-    let data_offset = scheme_size - u64::from(use_size);
-    println!("data offsize:{}", data_offset);
-    write_content(&file, data_offset, "0");
+    let data_schema = context.schema_data;
+    write_content(
+        &file,
+        data_schema.offset,
+        format!("{}", data_schema.info).as_str(),
+    );
+}
+
+pub fn process_create_db(db: &str) {
+    let context = &CONTEXT.lock().unwrap().schema;
+    let schema_data = context.schema_data;
+
+    //TODO define protocol
+    let tmp = format!("{};", db);
+    let db_name = tmp.as_str();
+    let data_size = db_name.as_bytes().len() as u64;
+    //TODO cache file fd
+    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
+    write_content(&file, schema_data.info, db_name);
+
+    //update data offset info and free info
+    let data_info = schema_data.info + data_size;
+    let free_info = context.schema_free.info - data_size;
+    context_schema_info(free_info, data_info)
 }
 
 pub fn process_use_db(db_name: &str) {
     //check schema  db exists
-    let context = CONTEXT.lock().unwrap();
+    let context = &CONTEXT.lock().unwrap().schema;
     //TODO cache file fd
-    let file = check_or_create_file(context.schema_path.as_str(), context.schema_size).unwrap();
-    //TODO read info from end of file
+    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
+    let data_offset = context.schema_data.info;
+    let mut buf = vec![0; data_offset as usize];
+    read_content(&file, 0, &mut buf);
+    println!("read content:{:?}", buf);
 }
 
 fn file_exists(path: &str) -> bool {
@@ -67,8 +85,11 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
 }
 
 pub fn write_content(f: &File, position: u64, content: &str) -> usize {
-    //f.seek(SeekFrom::Current(position)).unwrap();
     f.write_at(content.as_bytes(), position).unwrap()
+}
+
+pub fn read_content(f: &File, position: u64, buf: &mut [u8]) {
+    f.read_at(buf, position).unwrap();
 }
 
 pub fn delete_file(path: &str) {
