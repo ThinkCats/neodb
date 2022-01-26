@@ -45,11 +45,11 @@ pub fn startup_load_schema_mem() {
         let tmp = String::from_utf8(data_offset_buf).unwrap();
         data_offset = tmp.parse().unwrap();
     }
-    println!("read data size:{}", data_offset);
+    println!("[debug] read data size:{}", data_offset);
     let mut buf = vec![0; data_offset as usize];
     read_content(&file, 0, &mut buf);
     let read_db = String::from_utf8(buf).unwrap();
-    println!("read content:{:?}", read_db);
+    println!("[debug] read content:{:?}", read_db);
     let split = read_db
         .split(|x| x == ' ' || x == ';')
         .filter(|x| x.len() > 0)
@@ -58,7 +58,10 @@ pub fn startup_load_schema_mem() {
 
     //update mem schema data
     context_scheme_data_update(context, skip_list);
-    println!("after startup_load_schema_mem, context:{:?}", context);
+    println!(
+        "[debug] after startup_load_schema_mem, context:{:?}",
+        context
+    );
 }
 
 ///create a db
@@ -82,24 +85,16 @@ pub fn process_create_db(db: &str) {
         format!("{}", data_info).as_str(),
     );
 
-    println!("after startup_load_schema_mem, context:{:?}", context);
+    println!(
+        "[debug] after startup_load_schema_mem, context:{:?}",
+        context
+    );
 
     let free_info = context.schema_free.info - data_size;
     context_schema_info_update(context, free_info, data_info);
 
     //update mem skip_list
     context.data.insert(db_name.to_string());
-}
-
-pub fn process_use_db(db_name: &str) {
-    //check schema  db exists
-    let context = &CONTEXT.lock().unwrap().schema;
-    //TODO cache file fd
-    let file = check_or_create_file(context.path.as_str(), context.size).unwrap();
-    let data_offset = context.schema_data.info;
-    let mut buf = vec![0; data_offset as usize];
-    read_content(&file, 0, &mut buf);
-    println!("read content:{:?}", buf);
 }
 
 fn file_exists(path: &str) -> bool {
@@ -123,7 +118,7 @@ pub fn check_or_create_file(path: &str, size: u64) -> Result<File> {
 
 pub fn init_table_store(table_create_def: &CreateTableDef) {
     println!(
-        "-> Start init table store process, get def:{:?}",
+        "[debug] Start init table store process, get def:{:?}",
         table_create_def
     );
 }

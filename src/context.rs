@@ -67,10 +67,10 @@ pub fn context_use_db(db_name: &str) {
     //check db exists
     let db_existed = context.schema.data.contains(&db_name.to_string());
     if !db_existed {
-        println!("the schema don't existed : {}", db_name);
+        println!("[debug] the schema don't existed : {}", db_name);
         return;
     }
 
     context.db_name = db_name.to_string();
-    println!("after Use, context:{:?}", context);
+    println!("[debug] after Use, context:{:?}", context);
 }
