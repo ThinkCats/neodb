@@ -4,7 +4,7 @@ use std::io::stdout;
 use std::io::{BufRead, Write};
 
 use crate::context::{context_use_db, CONTEXT};
-use crate::parse::{self, CreateTableDef};
+use crate::parse::{self, CreateDbDef, CreateTableDef};
 use crate::parse::{DbCmd, UseDef};
 use crate::store;
 
@@ -82,7 +82,11 @@ fn process_input_sql(input: String) {
         }
         DbCmd::CreateDatabase => {
             println!("Start Init Create Db Schema");
-            store::install_meta_info_store();
+            let create_db_def: &CreateDbDef = match result.as_any().downcast_ref::<CreateDbDef>() {
+                Some(create_db_def) => create_db_def,
+                None => panic!("parse sql result is not create_db_def"),
+            };
+            store::process_create_db(create_db_def.db_name.as_str());
         }
         DbCmd::CreateTable => {
             println!("Start Create Table Init");

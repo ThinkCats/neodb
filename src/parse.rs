@@ -101,9 +101,9 @@ impl Display for SelectDef {
 }
 
 #[derive(Debug)]
-struct CreateDbDef {
-    db_name: String,
-    if_not_exists: bool,
+pub struct CreateDbDef {
+    pub db_name: String,
+    pub if_not_exists: bool,
 }
 
 impl DDL for CreateDbDef {

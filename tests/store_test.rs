@@ -86,7 +86,9 @@ fn test_write_info() {
 }
 
 #[test]
-fn test_init_schema() {}
+fn test_install_schema() {
+    install_meta_info_store();
+}
 
 #[test]
 fn test_process_create_db() {
