@@ -1,10 +1,13 @@
 use convenient_skiplist::{RangeHint, SkipList};
 use ndb::context::CONTEXT;
 use ndb::store::{
-    check_or_create_file, delete_file, install_meta_info_store, process_create_db,
-    startup_load_schema_mem, write_content,
+    check_or_create_file, delete_file, install_meta_info_store, iter_buf, process_create_db,
+    read_content, startup_load_schema_mem, write_content,
 };
 use ndb::store_file::SSDataEntry;
+
+use std::io::Write;
+use std::os::unix::prelude::FileExt;
 
 #[test]
 fn test_check_file() {
@@ -66,29 +69,52 @@ fn test_skip_list() {
     }
 }
 
+//#[test]
+//fn test_read_ff() {
+//    let off = CONTEXT.lock().unwrap().schema.meta_data.offset;
+//    let path = "/Users/wanglei/tmp/log/scheme";
+//    let f = check_or_create_file(path, 1000).unwrap();
+//    //let position = 0;
+//    let mut buf = [0u8; 3];
+//    let r = f.read_at(&mut buf, 0).unwrap();
+//    println!(
+//        "read :{:?}, r:{:?}, content:{:?}",
+//        buf,
+//        r,
+//        String::from_utf8(buf.to_vec())
+//    );
+//}
+
 #[test]
 fn test_write_info() {
     let path = "/Users/wanglei/tmp/log/wal.log";
-    let size = 10;
+    let size = 1 * 1024;
     let mut f = check_or_create_file(path, size).unwrap();
-    let content = "hello";
+    let content = bincode::serialize(
+        "hellosasdfsdsdddddasdfhsd;lfkhas;dlkfhsd;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas;afhsdkjfhklsdjfhldskfalsdfgalsdkfglsdfadslfgdlskfgdslfafh;sdjhlajsdlkagflksdgflksdgfladddddddddddddda;shfskdjhflkas",
+    )
+    .unwrap();
+    println!("content:{:?},len:{}", content, content.len());
+
     let mut times = 1;
     let mut position = 0;
     loop {
-        position += write_content(&mut f, position, content) as u64;
-        times += 1;
-        if times > 3 {
+        if times > 1 {
             break;
         }
+        let size = f.write_at(&content, position).unwrap();
+        position += size as u64;
+        f.flush().unwrap();
+        times += 1;
     }
-    assert_eq!(position, 15);
-    delete_file(path);
+    //assert_eq!(position, 15);
+    //delete_file(path);
 }
 
-//#[test]
-//fn test_install_schema() {
-//    install_meta_info_store();
-//}
+#[test]
+fn test_install_schema() {
+    install_meta_info_store();
+}
 
 #[test]
 fn test_process_create_db() {
@@ -104,9 +130,19 @@ fn test_process_create_db() {
     println!("scheme info :{:?}", context);
 
     assert_eq!(context.data.len(), 2);
-    assert_eq!(context.schema_data.info, 12);
+    assert_eq!(context.meta_data.info, 12);
 
     println!("scheme info :{:?}", context);
 
     delete_file(context.path.as_str());
+}
+
+#[test]
+fn test_iter_buf() {
+    let mut d = vec![
+        5, 0, 0, 0, 0, 0, 0, 0, 104, 119, 108, 108, 59, 3, 0, 0, 0, 0, 0, 0, 0, 103, 103, 59, 5, 0,
+        0, 0, 0, 0, 0, 0, 116, 101, 115, 116, 59,
+    ];
+    let r = iter_buf(&mut d);
+    println!("iter_buf result: {:?}", r);
 }

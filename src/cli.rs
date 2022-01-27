@@ -89,6 +89,8 @@ fn process_input_sql(input: String) {
                 Some(create_db_def) => create_db_def,
                 None => panic!("parse sql result is not create_db_def"),
             };
+            println!("[debug] db name:{}", create_db_def.db_name);
+
             store::process_create_db(create_db_def.db_name.as_str());
         }
         DbCmd::CreateTable => {
