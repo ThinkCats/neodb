@@ -74,10 +74,6 @@ pub fn startup_load_schema_mem() {
     //let read_db: String = bincode::deserialize(&schema_buf).unwrap();
     let read_db = iter_buf(&mut schema_buf);
     println!("[debug] read content:{:?}", read_db);
-    //let split = read_db
-    //    .split(|x| x == ' ' || x == ';')
-    //    .filter(|x| x.len() > 0)
-    //    .map(|m| m.to_string());
     let mut skip_list = SkipList::new();
     for v in read_db {
         skip_list.insert(v);
@@ -193,12 +189,6 @@ pub fn write_content(f: &mut File, position: u64, content: &[u8]) -> usize {
     f.flush().unwrap();
     return size;
 }
-
-//pub fn write_content_bytes(f: &mut File, position: u64, content: &[u8]) -> usize {
-//    let size = f.write_at(content, position).unwrap();
-//    f.flush().unwrap();
-//    return size;
-//}
 
 pub fn read_content(f: &File, position: u64, buf: &mut [u8]) {
     f.read_at(buf, position).unwrap();
