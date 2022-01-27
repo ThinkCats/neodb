@@ -111,6 +111,13 @@ pub fn iter_buf(buf: &mut [u8]) -> Vec<String> {
 ///create a db
 pub fn process_create_db(db_name: &str) {
     let context = &mut CONTEXT.lock().unwrap().schema;
+
+    //check db exists
+    if context.data.contains(&db_name.to_string()) {
+        println!("schema has existed, abort.");
+        return;
+    }
+
     let meta_data = context.meta_data;
     let data_size = db_name.as_bytes().len() as u64;
 
