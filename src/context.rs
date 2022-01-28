@@ -37,7 +37,7 @@ impl Schema {
 lazy_static! {
 
     ///install dir,TODO using real install dir
-    static ref INSTALL_DIR:String = String::from("/Users/wanglei/tmp/log/");
+    pub static ref INSTALL_DIR:String = String::from("/Users/wanglei/tmp/log/");
 
     ///bin code serialize string, fixed length of header
     pub static ref BINCODE_STR_FIXED_SIZE: u8= 8;

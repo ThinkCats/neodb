@@ -15,7 +15,6 @@ use std::path::Path;
 pub fn install_meta_info_store() {
     let context = &CONTEXT.lock().unwrap().schema;
     //TODO cache file fd
-
     let mut file = check_or_create_file(context.path.as_str(), context.size).unwrap();
     let free_schema = context.meta_free;
     write_content(
@@ -180,7 +179,9 @@ pub fn check_or_create_file(path: &str, size: u64) -> Result<File> {
         return Ok(f);
     }
     let f = File::create(path)?;
-    f.set_len(size)?;
+    if size > 0 {
+        f.set_len(size)?;
+    }
     Ok(f)
 }
 
@@ -189,6 +190,20 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
         "[debug] Start init table store process, get def:{:?}",
         table_create_def
     );
+    //create table files, file name style: schema+table_name+col_name
+    let table_name = &table_create_def.table_name;
+    let cols = &table_create_def.columns;
+    let schema = &CONTEXT.lock().unwrap().db_name;
+    for v in cols {
+        let path = format!(
+            "{}{}_{}_{}",
+            *crate::context::INSTALL_DIR,
+            schema,
+            table_name,
+            v.name
+        );
+        check_or_create_file(&path, 0).unwrap();
+    }
 }
 
 pub fn write_content(f: &mut File, position: u64, content: &[u8]) -> usize {
