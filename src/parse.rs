@@ -1,3 +1,4 @@
+use log::info;
 use std::any::Any;
 use std::fmt::Display;
 
@@ -202,24 +203,7 @@ pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
                     Box::new(create_db_def)
                 }
                 //process create table
-                Statement::CreateTable {
-                    name,
-                    columns,
-                    or_replace: _,
-                    temporary: _,
-                    constraints: _,
-                    hive_distribution: _,
-                    hive_formats: _,
-                    with_options: _,
-                    file_format: _,
-                    table_properties: _,
-                    location: _,
-                    query: _,
-                    without_rowid: _,
-                    like: _,
-                    external: _,
-                    if_not_exists: _,
-                } => {
+                Statement::CreateTable { name, columns, .. } => {
                     let mut name_vec = name.0;
                     let table_name = name_vec.pop().unwrap().value;
 
@@ -242,16 +226,25 @@ pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
                     Box::new(create_table_def)
                 }
                 Statement::Insert {
-                    or: _,
                     table_name,
                     columns,
-                    overwrite: _,
-                    source: _,
-                    partitioned: _,
-                    after_columns: _,
-                    table,
-                    on: _,
+                    source,
+                    ..
                 } => {
+                    let body = source.body;
+                    match body {
+                        SetExpr::Values(d) => {
+                            println!("process insert data:{:?}", d.0);
+                        }
+                        _ => {
+                            bail!("error parse insert sql:{}", sql);
+                        }
+                    }
+
+                    println!(
+                        "insert info, table name:{:?}, columns:{:?}",
+                        &table_name, &columns
+                    );
                     bail!("insert not support now :{}", sql);
                 }
                 _ => {

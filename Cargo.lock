@@ -241,6 +241,7 @@ dependencies = [
  "convenient-skiplist",
  "crossbeam",
  "lazy_static",
+ "log",
  "serde",
  "sqlparser",
 ]
