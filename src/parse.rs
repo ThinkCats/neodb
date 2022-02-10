@@ -7,6 +7,8 @@ use sqlparser::ast::{DataType, Expr, Query, SelectItem, SetExpr, Statement, Tabl
 use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
 
+use crate::context::{ColSchema, TableData};
+
 pub trait DDL: Display {
     fn cmd(self: &Self) -> DbCmd;
     fn as_any(&self) -> &dyn Any;
@@ -231,9 +233,16 @@ pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
                     source,
                     ..
                 } => {
+                    let col_names: Vec<&str> = columns.iter().map(|x| &x.value as &str).collect();
+                    println!("[debug] col names:{:?}", col_names);
+
                     let body = source.body;
                     match body {
                         SetExpr::Values(d) => {
+                            match d.0 {
+                                //TODO
+                                _ => {}
+                            }
                             println!("process insert data:{:?}", d.0);
                         }
                         _ => {

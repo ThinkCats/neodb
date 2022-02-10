@@ -54,8 +54,8 @@ pub struct TableDataArea {
 
 #[derive(Debug, Clone)]
 pub struct TableData {
-    pub schema: ColSchema,
-    pub data: TableDataArea,
+    pub schema: Vec<ColSchema>,
+    pub data: Vec<TableDataArea>,
 }
 
 lazy_static! {
