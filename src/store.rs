@@ -195,6 +195,7 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
     let cols = &table_create_def.columns;
     let schema = &CONTEXT.lock().unwrap().db_name;
     for v in cols {
+        //create data file
         let path = format!(
             "{}{}_{}_{}",
             *crate::context::INSTALL_DIR,
@@ -203,6 +204,16 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
             v.name
         );
         check_or_create_file(&path, 0).unwrap();
+        //create index file
+        let idx_path = format!(
+            "{}{}_{}_{}_idx",
+            *crate::context::INSTALL_DIR,
+            schema,
+            table_name,
+            v.name
+        );
+        check_or_create_file(&idx_path, 0).unwrap();
+        //init file meta info
     }
 }
 
