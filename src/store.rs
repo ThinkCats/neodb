@@ -1,10 +1,12 @@
 use anyhow::{Context, Result};
 
 use crate::context::{
-    context_schema_info_update, context_scheme_data_update, BINCODE_STR_FIXED_SIZE, CONTEXT,
+    context_schema_info_update, context_scheme_data_update, ColSchema, BINCODE_STR_FIXED_SIZE,
+    CONTEXT,
 };
-use crate::parse::CreateTableDef;
+use crate::parse::{ColDef, CreateTableDef};
 use convenient_skiplist::SkipList;
+use sqlparser::ast::DataType;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -214,7 +216,53 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
         );
         check_or_create_file(&idx_path, 0).unwrap();
         //init file meta info
+        init_table_schema(&path, v);
     }
+}
+
+fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
+    let col_name = &col_def.name;
+    println!("[debug] col name is :{}", col_name);
+    let col_type = &col_def.col_type;
+    let mut col_len: u64 = 0;
+    match col_type {
+        DataType::Varchar(opt) | DataType::BigInt(opt) => {
+            println!("[debug] data type varchar len:{:?}", opt);
+            match opt {
+                Some(len) => {
+                    col_len = *len;
+                }
+                None => {
+                    col_len = 0;
+                }
+            }
+        }
+        _ => {
+            println!("[debug] unsupport col type parse now");
+        }
+    }
+    println!("[debug] data len:{}", col_len);
+    let col_schema = crate::context::ColSchema {
+        name: String::from(col_name),
+        col_type: col_type.to_string(),
+        len: col_len,
+    };
+    println!("[debug] col schema info:{:?}", col_schema);
+
+    //write file
+    let mut file = check_or_create_file(table_file_path, 0).unwrap();
+    let bin = bincode::serialize(&col_schema).unwrap();
+    let bin_len = bin.len() as u16;
+    if bin_len > ColSchema::CAP {
+        //TODO use result
+        panic!("col definition is too long");
+    }
+    println!("[debug] bin len:{}", bin_len);
+
+    let schema_len = bincode::serialize(&bin_len).unwrap();
+
+    write_content(&mut file, 0, &schema_len);
+    write_content(&mut file, bin_len as u64, &bin);
 }
 
 pub fn write_content(f: &mut File, position: u64, content: &[u8]) -> usize {

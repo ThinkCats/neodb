@@ -1,5 +1,6 @@
 use convenient_skiplist::SkipList;
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -34,6 +35,29 @@ impl Schema {
     pub fn calc_schema_data_offset(&self) {}
 }
 
+#[derive(Serialize, Deserialize, PartialEq, PartialOrd, Debug, Clone)]
+pub struct ColSchema {
+    pub name: String,
+    pub col_type: String,
+    pub len: u64,
+}
+
+impl ColSchema {
+    pub const CAP: u16 = 256;
+}
+
+#[derive(Debug, Clone)]
+pub struct TableDataArea {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct TableData {
+    pub schema: ColSchema,
+    pub data: TableDataArea,
+}
+
 lazy_static! {
 
     ///install dir,TODO using real install dir
@@ -56,7 +80,6 @@ lazy_static! {
 }
 
 pub fn context_schema_info_update(schema: &mut Schema, free_info: u64, data_info: u64) {
-    //let mut context = CONTEXT.lock().unwrap();
     schema.meta_data.info = data_info;
     schema.meta_free.info = free_info;
 }

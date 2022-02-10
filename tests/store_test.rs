@@ -2,7 +2,7 @@ use convenient_skiplist::{RangeHint, SkipList};
 use ndb::context::CONTEXT;
 use ndb::store::{
     check_or_create_file, delete_file, install_meta_info_store, iter_buf, process_create_db,
-    startup_load_schema_mem,
+    read_content, startup_load_schema_mem, write_content,
 };
 use ndb::store_file::SSDataEntry;
 
@@ -145,4 +145,15 @@ fn test_iter_buf() {
     ];
     let r = iter_buf(&mut d);
     println!("iter_buf result: {:?}", r);
+}
+
+#[test]
+fn test_read_serial() {
+    let mut d = vec![0u8; 36];
+    let path = "/Users/wanglei/tmp/log/hello_user_id";
+    let file = check_or_create_file(path, 0).unwrap();
+    read_content(&file, 0, &mut d);
+    println!("read result:{:?}", d);
+    let r: u64 = bincode::deserialize(&d).unwrap();
+    println!("read r:{}", r);
 }

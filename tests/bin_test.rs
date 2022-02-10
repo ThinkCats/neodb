@@ -21,6 +21,3 @@ fn test_bin_number() {
     let re: String = bincode::deserialize(&v[..]).unwrap();
     println!("slice full:{:?}", re);
 }
-
-#[test]
-fn test_iter_buf() {}
