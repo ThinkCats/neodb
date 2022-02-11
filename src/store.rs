@@ -1,17 +1,19 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Error, Ok, Result};
 
 use crate::context::{
-    context_schema_info_update, context_scheme_data_update, ColSchema, BINCODE_STR_FIXED_SIZE,
-    CONTEXT,
+    context_schema_info_update, context_scheme_data_update, context_set_insert_key, ColSchema,
+    TableDataArea, BINCODE_STR_FIXED_SIZE, CONTEXT,
 };
 use crate::parse::{ColDef, CreateTableDef, InsertDef};
 use convenient_skiplist::SkipList;
 use sqlparser::ast::{DataType, Expr, Value};
+use std::any::{Any, TypeId};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::os::unix::prelude::FileExt;
 use std::path::Path;
+use std::slice::SliceIndex;
 
 ///install db process
 pub fn install_meta_info_store() {
@@ -201,14 +203,16 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
 }
 
 ///insert table data
-pub fn process_insert_data(insert_def: &InsertDef) {
+pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
     println!("store process insert data:{:?}", insert_def);
 
     let table = insert_def.table_name.to_string();
     let cols = insert_def.cols.to_vec();
     let data = insert_def.datas.to_vec();
 
-    let schema = &mut CONTEXT.lock().unwrap().db_name;
+    let mut context = CONTEXT.lock().unwrap();
+    let schema = context.db_name.to_string();
+
     //data file
     for (idx, col) in cols.iter().enumerate() {
         let path = format!(
@@ -220,20 +224,50 @@ pub fn process_insert_data(insert_def: &InsertDef) {
         );
 
         println!("[debug] parse file path:{}", path);
+        //read col schema
+        let file = check_or_create_file(&path, 0).unwrap();
+        let mut buf = vec![0u8; 8];
+        read_content(&file, 0, &mut buf);
+
+        let len: u64 = bincode::deserialize(&buf).unwrap();
+        let mut schema_buf = vec![0u8; len as usize];
+        read_content(&file, len, &mut schema_buf);
+        let col_schema: ColSchema = bincode::deserialize(&schema_buf).unwrap();
+        println!("[debug] read col schema len:{}, data:{:?}", len, col_schema);
+
         //get data
         for d in &data {
             let col_data = d.get(idx).unwrap();
-            match col_data {
+            let value: Option<&String> = match col_data {
                 Expr::Value(Value::SingleQuotedString(v)) => {
-                    println!("[debug] parse data string:{}", v);
+                    println!("v is:{}", v);
+                    Some(v)
                 }
                 Expr::Value(Value::Number(v, _)) => {
-                    println!("[debug] parse data number:{}", v);
+                    println!("v num is:{}", v);
+                    Some(v)
                 }
-                _ => {}
+                _ => None,
+            };
+            println!("current value:{:?}", value);
+
+            //check type
+            if col_schema.col_type.contains("CHARACTER") {
+                //process char or varchar
+            } else if col_schema.col_type.contains("INT") {
+                //process int or bigint
             }
+
+            if col_schema.name == "id" {
+                let key = value.unwrap();
+                let insert_info = &mut context.insert_info;
+                context_set_insert_key(insert_info, (*key).to_string());
+            }
+
+            println!("[debug] key is :{}", context.insert_info.insert_key);
         }
     }
+    Ok("ok")
 }
 
 fn init_table_schema(table_file_path: &str, col_def: &ColDef) {

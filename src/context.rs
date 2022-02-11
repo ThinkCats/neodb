@@ -6,9 +6,15 @@ use std::sync::Mutex;
 #[derive(Debug, Clone)]
 pub struct ContextInfo {
     pub db_name: String,
+    pub insert_info: InsertInfo,
 
     //schema
     pub schema: Schema,
+}
+
+#[derive(Debug, Clone)]
+pub struct InsertInfo {
+    pub insert_key: String,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +74,9 @@ lazy_static! {
 
     pub static ref CONTEXT: Mutex<ContextInfo> = Mutex::new(ContextInfo {
         db_name: String::from(""),
+        insert_info: InsertInfo {
+            insert_key: String::from(""),
+        },
         schema: Schema {
             size: 1*1024*1024,
             path: format!("{}{}", INSTALL_DIR.as_str(), String::from("scheme")),
@@ -86,6 +95,10 @@ pub fn context_schema_info_update(schema: &mut Schema, free_info: u64, data_info
 
 pub fn context_scheme_data_update(schema: &mut Schema, data: SkipList<String>) {
     schema.data = data;
+}
+
+pub fn context_set_insert_key(insert_info: &mut InsertInfo, key: String) {
+    insert_info.insert_key = key;
 }
 
 pub fn context_use_db(db_name: &str) {
