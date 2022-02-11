@@ -1,4 +1,3 @@
-use log::info;
 use std::any::Any;
 use std::fmt::Display;
 
@@ -9,7 +8,8 @@ use sqlparser::parser::Parser;
 
 use crate::context::{ColSchema, TableData};
 
-pub trait DDL: Display {
+///Database Operate
+pub trait DOP: Display {
     fn cmd(self: &Self) -> DbCmd;
     fn as_any(&self) -> &dyn Any;
 }
@@ -21,6 +21,7 @@ pub enum DbCmd {
     CreateDatabase,
     CreateTable,
     Select,
+    Insert,
 }
 
 #[derive(Debug)]
@@ -53,7 +54,7 @@ pub enum ShowType {
     Table,
 }
 
-impl DDL for ShowDef {
+impl DOP for ShowDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::Show
     }
@@ -69,7 +70,7 @@ impl Display for ShowDef {
     }
 }
 
-impl DDL for CreateTableDef {
+impl DOP for CreateTableDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::CreateTable
     }
@@ -88,7 +89,7 @@ impl Display for CreateTableDef {
     }
 }
 
-impl DDL for SelectDef {
+impl DOP for SelectDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::Select
     }
@@ -109,7 +110,7 @@ pub struct CreateDbDef {
     pub if_not_exists: bool,
 }
 
-impl DDL for CreateDbDef {
+impl DOP for CreateDbDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::CreateDatabase
     }
@@ -134,7 +135,7 @@ pub struct UseDef {
     pub db_name: String,
 }
 
-impl DDL for UseDef {
+impl DOP for UseDef {
     fn cmd(self: &Self) -> DbCmd {
         DbCmd::Use
     }
@@ -150,7 +151,30 @@ impl Display for UseDef {
     }
 }
 
-pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
+#[derive(Debug)]
+pub struct InsertDef {
+    pub table_name: String,
+    pub cols: Vec<String>,
+    pub datas: Vec<Vec<Expr>>,
+}
+
+impl DOP for InsertDef {
+    fn cmd(self: &Self) -> DbCmd {
+        DbCmd::Insert
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Display for InsertDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Insert Def:{:?}", self)
+    }
+}
+
+pub fn parse_sql(sql: &str) -> Result<Box<dyn DOP>> {
     //process show
     if sql.starts_with("show database") {
         return Ok(Box::new(ShowDef {
@@ -185,7 +209,7 @@ pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
             }
             let statement = data.pop().unwrap();
 
-            let ddl: Box<dyn DDL> = match statement {
+            let dop: Box<dyn DOP> = match statement {
                 //process select query
                 Statement::Query(q) => {
                     let select_def = parse_select_cols(q);
@@ -233,35 +257,35 @@ pub fn parse_sql(sql: &str) -> Result<Box<dyn DDL>> {
                     source,
                     ..
                 } => {
-                    let col_names: Vec<&str> = columns.iter().map(|x| &x.value as &str).collect();
+                    let col_names: Vec<String> = columns
+                        .iter()
+                        .map(|x| String::from(x.value.as_str()))
+                        .collect();
                     println!("[debug] col names:{:?}", col_names);
+
+                    let t_name = String::from(table_name.0.get(0).unwrap().value.as_str());
 
                     let body = source.body;
                     match body {
                         SetExpr::Values(d) => {
-                            match d.0 {
-                                //TODO
-                                _ => {}
-                            }
-                            println!("process insert data:{:?}", d.0);
+                            let insert_def = InsertDef {
+                                table_name: t_name,
+                                cols: col_names,
+                                datas: d.0,
+                            };
+                            Box::new(insert_def)
                         }
                         _ => {
                             bail!("error parse insert sql:{}", sql);
                         }
                     }
-
-                    println!(
-                        "insert info, table name:{:?}, columns:{:?}",
-                        &table_name, &columns
-                    );
-                    bail!("insert not support now :{}", sql);
                 }
                 _ => {
                     bail!("unknown parse statement :{}", sql);
                 }
             };
 
-            Ok(ddl)
+            Ok(dop)
         }
         Err(err) => {
             bail!("system error in parse statement :{}, error:{:?}", sql, &err)

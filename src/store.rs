@@ -4,9 +4,9 @@ use crate::context::{
     context_schema_info_update, context_scheme_data_update, ColSchema, BINCODE_STR_FIXED_SIZE,
     CONTEXT,
 };
-use crate::parse::{ColDef, CreateTableDef};
+use crate::parse::{ColDef, CreateTableDef, InsertDef};
 use convenient_skiplist::SkipList;
-use sqlparser::ast::DataType;
+use sqlparser::ast::{DataType, Expr, Value};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -166,27 +166,7 @@ pub fn process_create_db(db_name: &str) {
     println!("[debug] after insert skip_list , context:{:?}", context);
 }
 
-fn file_exists(path: &str) -> bool {
-    Path::new(path).exists()
-}
-
-pub fn check_or_create_file(path: &str, size: u64) -> Result<File> {
-    if file_exists(path) {
-        let f = OpenOptions::new()
-            .write(true)
-            .read(true)
-            .open(path)
-            .context("can not open file")
-            .unwrap();
-        return Ok(f);
-    }
-    let f = File::create(path)?;
-    if size > 0 {
-        f.set_len(size)?;
-    }
-    Ok(f)
-}
-
+///process create table
 pub fn init_table_store(table_create_def: &CreateTableDef) {
     println!(
         "[debug] Start init table store process, get def:{:?}",
@@ -217,6 +197,42 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
         check_or_create_file(&idx_path, 0).unwrap();
         //init file meta info
         init_table_schema(&path, v);
+    }
+}
+
+///insert table data
+pub fn process_insert_data(insert_def: &InsertDef) {
+    println!("store process insert data:{:?}", insert_def);
+
+    let table = insert_def.table_name.to_string();
+    let cols = insert_def.cols.to_vec();
+    let data = insert_def.datas.to_vec();
+
+    let schema = &mut CONTEXT.lock().unwrap().db_name;
+    //data file
+    for (idx, col) in cols.iter().enumerate() {
+        let path = format!(
+            "{}{}_{}_{}",
+            *crate::context::INSTALL_DIR,
+            schema,
+            table,
+            col
+        );
+
+        println!("[debug] parse file path:{}", path);
+        //get data
+        for d in &data {
+            let col_data = d.get(idx).unwrap();
+            match col_data {
+                Expr::Value(Value::SingleQuotedString(v)) => {
+                    println!("[debug] parse data string:{}", v);
+                }
+                Expr::Value(Value::Number(v, _)) => {
+                    println!("[debug] parse data number:{}", v);
+                }
+                _ => {}
+            }
+        }
     }
 }
 
@@ -263,6 +279,27 @@ fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
 
     write_content(&mut file, 0, &schema_len);
     write_content(&mut file, bin_len as u64, &bin);
+}
+
+fn file_exists(path: &str) -> bool {
+    Path::new(path).exists()
+}
+
+pub fn check_or_create_file(path: &str, size: u64) -> Result<File> {
+    if file_exists(path) {
+        let f = OpenOptions::new()
+            .write(true)
+            .read(true)
+            .open(path)
+            .context("can not open file")
+            .unwrap();
+        return Ok(f);
+    }
+    let f = File::create(path)?;
+    if size > 0 {
+        f.set_len(size)?;
+    }
+    Ok(f)
 }
 
 pub fn write_content(f: &mut File, position: u64, content: &[u8]) -> usize {

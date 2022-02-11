@@ -4,7 +4,7 @@ use std::io::stdout;
 use std::io::{BufRead, Write};
 
 use crate::context::{context_use_db, CONTEXT};
-use crate::parse::{self, CreateDbDef, CreateTableDef};
+use crate::parse::{self, CreateDbDef, CreateTableDef, InsertDef};
 use crate::parse::{DbCmd, UseDef};
 use crate::store;
 
@@ -90,7 +90,6 @@ fn process_input_sql(input: String) {
                 None => panic!("parse sql result is not create_db_def"),
             };
             println!("[debug] db name:{}", create_db_def.db_name);
-
             store::process_create_db(create_db_def.db_name.as_str());
         }
         DbCmd::CreateTable => {
@@ -101,6 +100,14 @@ fn process_input_sql(input: String) {
                     None => panic!("parse sql result is not create_table_def"),
                 };
             store::init_table_store(create_table_def);
+        }
+        DbCmd::Insert => {
+            println!("Start Table Insert ");
+            let insert_def: &InsertDef = match result.as_any().downcast_ref::<InsertDef>() {
+                Some(insert_def) => insert_def,
+                None => panic!("parse sql result is not insert def"),
+            };
+            store::process_insert_data(insert_def);
         }
         DbCmd::Select => {}
     }
