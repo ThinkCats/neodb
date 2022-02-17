@@ -49,19 +49,14 @@ pub struct ColSchema {
 }
 
 impl ColSchema {
-    pub const CAP: u16 = 256;
-}
-
-#[derive(Debug, Clone)]
-pub struct TableDataArea {
-    pub key: String,
-    pub value: String,
+    pub const CAP: u64 = 256;
+    pub const DATA_OFFSET_CAP: u64 = 8;
 }
 
 #[derive(Debug, Clone)]
 pub struct TableData {
-    pub schema: Vec<ColSchema>,
-    pub data: Vec<TableDataArea>,
+    pub value: String,
+    pub free: u64,
 }
 
 lazy_static! {

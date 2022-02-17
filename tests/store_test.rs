@@ -1,12 +1,12 @@
 use convenient_skiplist::{RangeHint, SkipList};
-use ndb::context::CONTEXT;
+use ndb::context::{ColSchema, CONTEXT};
 use ndb::store::{
     check_or_create_file, delete_file, install_meta_info_store, iter_buf, process_create_db,
     read_content, startup_load_schema_mem, write_content,
 };
-use ndb::store_file::SSDataEntry;
+use ndb::store_file::DataIdxEntry;
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::os::unix::prelude::FileExt;
 
 #[test]
@@ -32,23 +32,14 @@ fn test_create_file() {
 #[test]
 fn test_skip_list() {
     let mut list = SkipList::new();
-    let entry1 = SSDataEntry {
-        key: 1,
-        value: String::from("hello"),
-    };
+    let entry1 = DataIdxEntry { key: 1, offset: 1 };
     println!("data entry size:{}", entry1.length());
     list.insert(entry1);
 
-    let entry3 = SSDataEntry {
-        key: 3,
-        value: String::from("Ssss"),
-    };
+    let entry3 = DataIdxEntry { key: 3, offset: 3 };
     list.insert(entry3);
 
-    let entry2 = SSDataEntry {
-        key: 2,
-        value: String::from("world"),
-    };
+    let entry2 = DataIdxEntry { key: 2, offset: 2 };
     list.insert(entry2);
 
     println!("skip list detail :{:?}", list);
@@ -149,11 +140,73 @@ fn test_iter_buf() {
 
 #[test]
 fn test_read_serial() {
-    let mut d = vec![0u8; 36];
     let path = "/Users/wanglei/tmp/log/hello_user_id";
-    let file = check_or_create_file(path, 0).unwrap();
-    read_content(&file, 0, &mut d);
-    println!("read result:{:?}", d);
+    let mut file = check_or_create_file(path, 0).unwrap();
+
+    let mut all_buf = vec![0u8; file.metadata().unwrap().len() as usize];
+    file.read(&mut all_buf).unwrap();
+    println!("all buf:{:?}", all_buf);
+
+    let mut data_offset_buf = vec![0u8; 8];
+    read_content(&file, 0, &mut data_offset_buf);
+    let data_offset: u64 = bincode::deserialize(&data_offset_buf).unwrap();
+    println!("read data offset buf:{:?}", data_offset_buf);
+    println!("read data offset info:{:?}", data_offset);
+
+    let mut d = vec![0u8; 256];
+    read_content(&file, data_offset_buf.len() as u64, &mut d);
+    println!("read header result:{:?}", d);
     let r: u64 = bincode::deserialize(&d).unwrap();
-    println!("read r:{}", r);
+    println!("read header content:{}", r);
+
+    let mut s = vec![0u8; r as usize];
+    read_content(&file, r, &mut s);
+    println!("read result:{:?}", s);
+    let scheme: ColSchema = bincode::deserialize(&s).unwrap();
+    println!("read scheme:{:?}", scheme);
+
+    let entry = String::from("hehehe");
+    let content = bincode::serialize(&entry).unwrap();
+    println!("entry serialize len:{}", content.len());
+    let d_pos = r + s.len() as u64;
+    write_content(&mut file, d_pos, &content);
+
+    let d2_pos = d_pos + content.len() as u64;
+    let entry2 = String::from("world");
+    let c_2 = bincode::serialize(&entry2).unwrap();
+    write_content(&mut file, d2_pos, &c_2);
+
+    let mut e = vec![0u8; content.len() as usize];
+    read_content(&file, d_pos, &mut e);
+    println!("read entry:{:?}", e);
+    let r_e: String = bincode::deserialize(&e).unwrap();
+    println!("read real entry:{:?}", r_e);
+
+    let offset: u64 = 0;
+    let offset_buf = bincode::serialize(&offset).unwrap();
+    println!("offset buf size:{}", offset_buf.len());
+}
+
+#[test]
+fn test_store_skiplist() {
+    let d1 = DataIdxEntry { key: 1, offset: 1 };
+    let d2 = DataIdxEntry { key: 2, offset: 2 };
+    let d3 = DataIdxEntry { key: 3, offset: 3 };
+    let mut list = Vec::new();
+    list.push(d1);
+    list.push(d2);
+    list.push(d3);
+    let file_path = String::from("/Users/wanglei/tmp/log/store_skiplist");
+    let mut f = check_or_create_file(&file_path, 0).unwrap();
+    let list_buf = bincode::serialize(&list).unwrap();
+    write_content(&mut f, 0, &list_buf);
+
+    let f_len = f.metadata().unwrap().len();
+    let mut read_buf = vec![0u8; f_len as usize];
+    read_content(&f, 0, &mut read_buf);
+    println!("read buf:{:?}", read_buf);
+    let read_info: Vec<DataIdxEntry> = bincode::deserialize(&read_buf).unwrap();
+    println!("read info:{:?}", read_info);
+    let skip_list = SkipList::from_iter(read_info.iter());
+    println!("read skipList:{:?}", skip_list);
 }

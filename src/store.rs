@@ -2,18 +2,17 @@ use anyhow::{bail, Context, Error, Ok, Result};
 
 use crate::context::{
     context_schema_info_update, context_scheme_data_update, context_set_insert_key, ColSchema,
-    TableDataArea, BINCODE_STR_FIXED_SIZE, CONTEXT,
+    TableData, BINCODE_STR_FIXED_SIZE, CONTEXT,
 };
 use crate::parse::{ColDef, CreateTableDef, InsertDef};
+use crate::store_file::DataIdxEntry;
 use convenient_skiplist::SkipList;
 use sqlparser::ast::{DataType, Expr, Value};
-use std::any::{Any, TypeId};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::os::unix::prelude::FileExt;
 use std::path::Path;
-use std::slice::SliceIndex;
 
 ///install db process
 pub fn install_meta_info_store() {
@@ -197,6 +196,10 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
             v.name
         );
         check_or_create_file(&idx_path, 0).unwrap();
+        //don't set idx file header
+        //let init_size: i64 = 0;
+        //let content = bincode::serialize(&init_size).unwrap();
+        //write_content(&mut idx_file, 0, &content);
         //init file meta info
         init_table_schema(&path, v);
     }
@@ -225,9 +228,10 @@ pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
 
         println!("[debug] parse file path:{}", path);
         //read col schema
-        let file = check_or_create_file(&path, 0).unwrap();
-        let mut buf = vec![0u8; 8];
-        read_content(&file, 0, &mut buf);
+        let mut file = check_or_create_file(&path, 0).unwrap();
+
+        let mut buf = vec![0u8; ColSchema::CAP as usize];
+        read_content(&file, ColSchema::DATA_OFFSET_CAP, &mut buf);
 
         let len: u64 = bincode::deserialize(&buf).unwrap();
         let mut schema_buf = vec![0u8; len as usize];
@@ -251,6 +255,19 @@ pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
             };
             println!("current value:{:?}", value);
 
+            if col_schema.name == "id" {
+                //
+                let key = value.unwrap();
+                let insert_info = &mut context.insert_info;
+                context_set_insert_key(insert_info, (*key).to_string());
+                continue;
+            }
+
+            let v_len = value.unwrap().len();
+            if v_len > col_schema.len as usize {
+                panic!("data too long");
+            }
+
             //check type
             if col_schema.col_type.contains("CHARACTER") {
                 //process char or varchar
@@ -258,13 +275,59 @@ pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
                 //process int or bigint
             }
 
-            if col_schema.name == "id" {
-                let key = value.unwrap();
-                let insert_info = &mut context.insert_info;
-                context_set_insert_key(insert_info, (*key).to_string());
+            let mut data_offset_buf = vec![0u8; ColSchema::DATA_OFFSET_CAP as usize];
+            read_content(&file, 0, &mut data_offset_buf);
+            let data_offset: u64 = bincode::deserialize(&data_offset_buf).unwrap();
+            //store data -> free + value
+            let encode_value = bincode::serialize(&value.unwrap()).unwrap();
+            let free = col_schema.len - encode_value.len() as u64;
+            if free <= 0 {
+                panic!("data content too long")
             }
+            let free_buf = bincode::serialize(&free).unwrap();
+            write_content(&mut file, data_offset, &free_buf);
+            write_content(
+                &mut file,
+                data_offset + free_buf.len() as u64,
+                &encode_value,
+            );
 
-            println!("[debug] key is :{}", context.insert_info.insert_key);
+            let idx_path = format!(
+                "{}{}_{}_{}_idx",
+                *crate::context::INSTALL_DIR,
+                schema,
+                table,
+                col_schema.name
+            );
+            let mut idx_file = check_or_create_file(&idx_path, 0).unwrap();
+            let insert_key: u64 = *(&context
+                .insert_info
+                .insert_key
+                .parse()
+                .expect("key should a number"));
+
+            let idx_entry = DataIdxEntry {
+                key: insert_key,
+                offset: data_offset,
+            };
+
+            let idx_file_size = idx_file.metadata().unwrap().len();
+            let mut all_buf = vec![0u8; idx_file_size as usize];
+            let mut all_data: Vec<DataIdxEntry> = Vec::new();
+            if idx_file_size > 0 {
+                read_content(&idx_file, 0, &mut all_buf);
+                let mut all_data: Vec<DataIdxEntry> = bincode::deserialize(&all_buf).unwrap();
+                println!("[debug] all index data:{:?}", all_data);
+                all_data.push(idx_entry);
+                let all_skip_list = SkipList::from_iter(all_data.iter());
+                println!("[debug] all index skip list:{:?}", all_skip_list);
+            } else {
+                all_data = vec![idx_entry];
+            }
+            let all_data_buf = bincode::serialize(&all_data).unwrap();
+            write_content(&mut idx_file, 0, &all_data_buf);
+
+            println!("[debug] key is :{}", insert_key);
         }
     }
     Ok("ok")
@@ -283,7 +346,7 @@ fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
                     col_len = *len;
                 }
                 None => {
-                    col_len = 0;
+                    col_len = 16;
                 }
             }
         }
@@ -302,16 +365,23 @@ fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
     //write file
     let mut file = check_or_create_file(table_file_path, 0).unwrap();
     let bin = bincode::serialize(&col_schema).unwrap();
-    let bin_len = bin.len() as u16;
+    let bin_len = bin.len() as u64;
     if bin_len > ColSchema::CAP {
         //TODO use result
         panic!("col definition is too long");
     }
     println!("[debug] bin len:{}", bin_len);
 
-    let schema_len = bincode::serialize(&bin_len).unwrap();
+    //write data offset, TODO change col type and len will break here !!!
+    let data_offset: u64 = ColSchema::CAP + ColSchema::DATA_OFFSET_CAP;
+    let offset_buf = bincode::serialize(&data_offset).unwrap();
+    write_content(&mut file, 0, &offset_buf);
 
-    write_content(&mut file, 0, &schema_len);
+    let schema_len = bincode::serialize(&bin_len).unwrap();
+    //write schema len, after data offset area
+    write_content(&mut file, ColSchema::DATA_OFFSET_CAP, &schema_len);
+
+    //write schema
     write_content(&mut file, bin_len as u64, &bin);
 }
 
@@ -334,6 +404,12 @@ pub fn check_or_create_file(path: &str, size: u64) -> Result<File> {
         f.set_len(size)?;
     }
     Ok(f)
+}
+
+pub fn append_content(f: &mut File, content: &[u8]) -> usize {
+    let size = f.write(content).unwrap();
+    f.flush().unwrap();
+    return size;
 }
 
 pub fn write_content(f: &mut File, position: u64, content: &[u8]) -> usize {
