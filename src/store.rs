@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Error, Ok, Result};
 
 use crate::context::{
     context_schema_info_update, context_scheme_data_update, context_set_insert_key, ColSchema,
-    TableData, BINCODE_STR_FIXED_SIZE, CONTEXT,
+    BINCODE_STR_FIXED_SIZE, CONTEXT,
 };
 use crate::parse::{ColDef, CreateTableDef, InsertDef};
 use crate::store_file::DataIdxEntry;

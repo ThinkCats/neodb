@@ -107,8 +107,10 @@ fn process_input_sql(input: String) {
                 Some(insert_def) => insert_def,
                 None => panic!("parse sql result is not insert def"),
             };
-            store::process_insert_data(insert_def);
+            store::process_insert_data(insert_def).unwrap();
         }
-        DbCmd::Select => {}
+        DbCmd::Select => {
+            println!("Start Select Statement");
+        }
     }
 }
