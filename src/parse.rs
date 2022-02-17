@@ -6,8 +6,6 @@ use sqlparser::ast::{DataType, Expr, Query, SelectItem, SetExpr, Statement, Tabl
 use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
 
-use crate::context::{ColSchema, TableData};
-
 ///Database Operate
 pub trait DOP: Display {
     fn cmd(self: &Self) -> DbCmd;
@@ -25,9 +23,9 @@ pub enum DbCmd {
 }
 
 #[derive(Debug)]
-struct SelectDef {
-    columns: Vec<String>,
-    table: Vec<String>,
+pub struct SelectDef {
+    pub columns: Vec<String>,
+    pub table: Vec<String>,
 }
 
 #[derive(Debug)]

@@ -4,7 +4,7 @@ use std::io::stdout;
 use std::io::{BufRead, Write};
 
 use crate::context::{context_use_db, CONTEXT};
-use crate::parse::{self, CreateDbDef, CreateTableDef, InsertDef};
+use crate::parse::{self, CreateDbDef, CreateTableDef, InsertDef, SelectDef};
 use crate::parse::{DbCmd, UseDef};
 use crate::store;
 
@@ -58,7 +58,7 @@ fn process_input_sql(input: String) {
         }
     }
 
-    println!("[debug] Parse Your SQL:{}", result);
+    println!("[debug] Parse Your SQL Define:{}", result);
     let cmd = result.cmd();
     println!("[debug] Your SQL Cmd:{:?}", cmd);
 
@@ -111,6 +111,11 @@ fn process_input_sql(input: String) {
         }
         DbCmd::Select => {
             println!("Start Select Statement");
+            let select_def: &SelectDef = match result.as_any().downcast_ref::<SelectDef>() {
+                Some(select_def) => select_def,
+                None => panic!("parse sql result is not select def"),
+            };
+            //TODO process select store
         }
     }
 }
