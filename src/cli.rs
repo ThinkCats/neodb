@@ -116,6 +116,7 @@ fn process_input_sql(input: String) {
                 None => panic!("parse sql result is not select def"),
             };
             //TODO process select store
+            store::process_select(select_def).unwrap();
         }
     }
 }

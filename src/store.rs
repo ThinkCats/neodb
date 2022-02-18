@@ -1,11 +1,11 @@
 use anyhow::{bail, Context, Error, Ok, Result};
 
 use crate::context::{
-    context_schema_info_update, context_scheme_data_update, context_set_insert_key, ColSchema,
-    BINCODE_STR_FIXED_SIZE, CONTEXT,
+    context_schema_info_update, context_scheme_data_update, context_set_insert_key,
+    BINCODE_STR_FIXED_SIZE, CONTEXT, INSTALL_DIR,
 };
-use crate::parse::{ColDef, CreateTableDef, InsertDef};
-use crate::store_file::DataIdxEntry;
+use crate::parse::{ColDef, CreateTableDef, InsertDef, SelectDef};
+use crate::store_file::{ColSchema, DataIdxEntry, TableSchema};
 use convenient_skiplist::SkipList;
 use sqlparser::ast::{DataType, Expr, Value};
 use std::fs;
@@ -164,6 +164,8 @@ pub fn process_create_db(db_name: &str) {
     //update mem skip_list, db not end with ;
     context.data.insert(db_name.to_string());
 
+    //create schema table
+
     println!("[debug] after insert skip_list , context:{:?}", context);
 }
 
@@ -177,6 +179,8 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
     let table_name = &table_create_def.table_name;
     let cols = &table_create_def.columns;
     let schema = &CONTEXT.lock().unwrap().db_name;
+    let mut col_schema_list: Vec<ColSchema> = Vec::new();
+
     for v in cols {
         //create data file
         let path = format!(
@@ -196,13 +200,75 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
             v.name
         );
         check_or_create_file(&idx_path, 0).unwrap();
-        //don't set idx file header
-        //let init_size: i64 = 0;
-        //let content = bincode::serialize(&init_size).unwrap();
-        //write_content(&mut idx_file, 0, &content);
-        //init file meta info
-        init_table_schema(&path, v);
+
+        let tmp_col_schema = init_col_schema(&path, v);
+        col_schema_list.push(tmp_col_schema);
     }
+    let table_schema_path = format!("{}{}_{}_schema", *INSTALL_DIR, schema, table_name);
+    let mut table_schema_file = check_or_create_file(&table_schema_path, 0).unwrap();
+    let table_schema = TableSchema { col_schema_list };
+    let table_schema_buf = bincode::serialize(&table_schema).unwrap();
+    write_content(&mut table_schema_file, 0, &table_schema_buf);
+}
+
+pub fn process_select(select_def: &SelectDef) -> Result<&str> {
+    println!("store process select data:{:?}", select_def);
+    let schema = &CONTEXT.lock().unwrap().db_name;
+    let tables = &select_def.table;
+
+    // TODO foreach table vec
+    // for table in tables {
+    let table = tables.get(0).unwrap();
+
+    let mut cols: Vec<String> = Vec::new();
+
+    //select * from xxxx; the cols is empty, should read from TableSchema
+    if cols.is_empty() {
+        let table_schema_path = format!("{}{}_{}_schema", *INSTALL_DIR, schema, table);
+        let table_schema_file = check_or_create_file(&table_schema_path, 0).unwrap();
+        let mut table_schema_buf = vec![0u8; table_schema_file.metadata().unwrap().len() as usize];
+        read_content(&table_schema_file, 0, &mut table_schema_buf);
+        let table_schema: TableSchema = bincode::deserialize(&table_schema_buf).unwrap();
+        println!("select statement, table schema:{:?}", table_schema);
+        let col_schema_list = table_schema.col_schema_list;
+        let tmp_col: Vec<String> = col_schema_list.iter().map(|x| x.name.clone()).collect();
+        cols = tmp_col.clone();
+    } else {
+        cols = select_def.columns.clone();
+    }
+
+    for col in cols {
+        let data_path = format!(
+            "{}{}_{}_{}",
+            *crate::context::INSTALL_DIR,
+            schema,
+            table,
+            col
+        );
+        let idx_path = format!(
+            "{}{}_{}_{}_idx",
+            *crate::context::INSTALL_DIR,
+            schema,
+            table,
+            col
+        );
+        let idx_file_result = check_or_create_file(&idx_path, 0);
+        if !idx_file_result.is_ok() {
+            //col is not belong to the table
+            continue;
+        }
+        let idx_file = idx_file_result.unwrap();
+        let idx_file_len = idx_file.metadata().unwrap().len();
+        if idx_file_len == 0 {
+            continue;
+        }
+        let mut idx_buf = vec![0u8; idx_file_len as usize];
+        read_content(&idx_file, 0, &mut idx_buf);
+        let idx_data: Vec<DataIdxEntry> = bincode::deserialize(&idx_buf).unwrap();
+        println!("select table idx data:{:?}", idx_data);
+    }
+
+    Ok("ok")
 }
 
 ///insert table data
@@ -256,7 +322,6 @@ pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
             println!("current value:{:?}", value);
 
             if col_schema.name == "id" {
-                //
                 let key = value.unwrap();
                 let insert_info = &mut context.insert_info;
                 context_set_insert_key(insert_info, (*key).to_string());
@@ -333,7 +398,7 @@ pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
     Ok("ok")
 }
 
-fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
+fn init_col_schema(table_file_path: &str, col_def: &ColDef) -> ColSchema {
     let col_name = &col_def.name;
     println!("[debug] col name is :{}", col_name);
     let col_type = &col_def.col_type;
@@ -355,7 +420,7 @@ fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
         }
     }
     println!("[debug] data len:{}", col_len);
-    let col_schema = crate::context::ColSchema {
+    let col_schema = crate::store_file::ColSchema {
         name: String::from(col_name),
         col_type: col_type.to_string(),
         len: col_len,
@@ -383,6 +448,8 @@ fn init_table_schema(table_file_path: &str, col_def: &ColDef) {
 
     //write schema
     write_content(&mut file, bin_len as u64, &bin);
+
+    col_schema.clone()
 }
 
 fn file_exists(path: &str) -> bool {

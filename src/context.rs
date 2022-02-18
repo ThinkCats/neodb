@@ -1,6 +1,6 @@
+use crate::store_file::{InsertInfo, Schema, SchemeArea};
 use convenient_skiplist::SkipList;
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -10,53 +10,6 @@ pub struct ContextInfo {
 
     //schema
     pub schema: Schema,
-}
-
-#[derive(Debug, Clone)]
-pub struct InsertInfo {
-    pub insert_key: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct Schema {
-    pub size: u64,
-    pub data: SkipList<String>,
-    pub path: String,
-
-    ///schema area info
-    pub meta_data: SchemeArea,
-    pub meta_free: SchemeArea,
-}
-
-unsafe impl Send for Schema {}
-
-#[derive(Debug, Clone, Copy)]
-pub struct SchemeArea {
-    pub info: u64,
-    pub offset: u64,
-    pub capacity: u8,
-}
-
-impl Schema {
-    pub fn calc_schema_data_offset(&self) {}
-}
-
-#[derive(Serialize, Deserialize, PartialEq, PartialOrd, Debug, Clone)]
-pub struct ColSchema {
-    pub name: String,
-    pub col_type: String,
-    pub len: u64,
-}
-
-impl ColSchema {
-    pub const CAP: u64 = 256;
-    pub const DATA_OFFSET_CAP: u64 = 8;
-}
-
-#[derive(Debug, Clone)]
-pub struct TableData {
-    pub value: String,
-    pub free: u64,
 }
 
 lazy_static! {
