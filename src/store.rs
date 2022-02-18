@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Error, Ok, Result};
 
 use crate::context::{
     context_schema_info_update, context_scheme_data_update, context_set_insert_key,
-    BINCODE_STR_FIXED_SIZE, CONTEXT, INSTALL_DIR,
+    BINCODE_STR_FIXED_SIZE, CONTEXT, INSTALL_DIR, TABLE_ID,
 };
 use crate::parse::{ColDef, CreateTableDef, InsertDef, SelectDef};
 use crate::store_file::{ColSchema, DataIdxEntry, TableSchema};
@@ -192,17 +192,19 @@ pub fn init_table_store(table_create_def: &CreateTableDef) {
         );
         check_or_create_file(&path, 0).unwrap();
         //create index file
-        let idx_path = format!(
-            "{}{}_{}_{}_idx",
-            *crate::context::INSTALL_DIR,
-            schema,
-            table_name,
-            v.name
-        );
-        check_or_create_file(&idx_path, 0).unwrap();
+        if v.name != TABLE_ID.as_str() {
+            let idx_path = format!(
+                "{}{}_{}_{}_idx",
+                *crate::context::INSTALL_DIR,
+                schema,
+                table_name,
+                v.name
+            );
+            check_or_create_file(&idx_path, 0).unwrap();
 
-        let tmp_col_schema = init_col_schema(&path, v);
-        col_schema_list.push(tmp_col_schema);
+            let tmp_col_schema = init_col_schema(&path, v);
+            col_schema_list.push(tmp_col_schema);
+        }
     }
     let table_schema_path = format!("{}{}_{}_schema", *INSTALL_DIR, schema, table_name);
     let mut table_schema_file = check_or_create_file(&table_schema_path, 0).unwrap();
@@ -325,6 +327,7 @@ pub fn process_insert_data(insert_def: &InsertDef) -> Result<&str> {
                 let key = value.unwrap();
                 let insert_info = &mut context.insert_info;
                 context_set_insert_key(insert_info, (*key).to_string());
+
                 continue;
             }
 

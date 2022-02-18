@@ -16,6 +16,8 @@ lazy_static! {
 
     ///install dir,TODO using real install dir
     pub static ref INSTALL_DIR:String = String::from("/Users/wanglei/tmp/log/");
+    //table uniq column identity
+    pub static ref TABLE_ID:String = String::from("id");
 
     ///bin code serialize string, fixed length of header
     pub static ref BINCODE_STR_FIXED_SIZE: u8= 8;
