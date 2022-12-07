@@ -8,4 +8,4 @@ support mysql grammar:
 4. select 
 
 ---
-inspired by <<ddia>>.
+inspired by ddia.
