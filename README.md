@@ -2,7 +2,7 @@
 A database writting by rust  
 
 support mysql grammar:
-create schema
-create table
-insert 
-select 
+1. create schema
+2. create table
+3. insert 
+4. select 
